@@ -172,9 +172,187 @@ void help(const char * cmd, char* arg) {
     }
     lock_release(&command_lock);
 }
+
+void dump_system_regs() {
+    lock_take(&command_lock);
+
+    iprintf("hello there 123 123 testing\n");
+
+    unsigned long long buf;
+
+    iprintf("-------- Feature registers --------\n");
+
+    asm volatile ("mrs %0, ID_AA64ISAR0_EL1" : "=r"(buf) ::);
+    iprintf("1. ID_AA64ISAR0_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64PFR0_EL1" : "=r"(buf) ::);
+    iprintf("2. ID_AA64PFR0_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64PFR1_EL1" : "=r"(buf) ::);
+    iprintf("3. ID_AA64PFR1_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, MIDR_EL1" : "=r"(buf) ::);
+    iprintf("4. MIDR_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64ISAR1_EL1" : "=r"(buf) ::);
+    iprintf("5. ID_AA64ISAR1_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64MMFR0_EL1" : "=r"(buf) ::);
+    iprintf("6. ID_AA64MMFR0_EL1: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, ID_AA64MMFR2_EL1" : "=r"(buf) ::);
+    iprintf("7. ID_AA64MMFR2_EL1: 0x%llx\n", buf);
+
+    //apple clang doesnt like it probably because armv8.0 has no business having sve lol
+    // asm volatile ("mrs %0, ID_AA64ZFR0_EL1" : "=r"(buf) ::);
+    // iprintf("8. ID_AA64ZFR0_EL1: %llx\n", buf);
+
+
+    iprintf("-------- Other regsiters --------\n");
+
+    asm volatile ("mrs %0, CNTFRQ_EL0" : "=r"(buf) ::);
+    iprintf("CNTFRQ_EL0: 0x%llx\n", buf);
+
+    asm volatile ("mrs %0, CurrentEL" : "=r"(buf) ::);
+    iprintf("CurrentEL [2:3]: 0x%llx\n", buf >> 2);
+
+    asm volatile ("mrs %0, CLIDR_EL1" : "=r"(buf) ::);
+    iprintf("CLIDR_EL1: 0x%llx\n", buf);
+
+    lock_release(&command_lock);
+}
+
+void fix_a7() {
+    lock_take(&command_lock);
+
+    __asm__ volatile(
+        // "unlock the core for debugging"
+        "msr OSLAR_EL1, xzr\n"
+
+            //good
+            "mrs x28, S3_0_C15_C4_0\n"
+            "and x28, x28, #0xfffffffffffff7ff\n" // ~ARM64_REG_HID4_DisDcMVAOps
+            "msr S3_0_C15_C4_0, x28\n"
+            "isb sy\n"
+#if 0
+            //cyclone is so baaaaaaad
+            "dsb sy\n"
+
+            "mov x0, xzr\n"
+            "mov x1, 0x10000\n"
+            "mov     x28, #0x3f\n"
+            "and     x1, x0, x28\n"
+            "bic     x0, x0, x28\n"
+            "add     x3, x3, x1\n"
+            "sub     x3, x3, #0x1\n"
+            "lsr     x3, x3, #6\n"
+            "dsb     sy\n"
+
+            // "L_cpcdr_loop:\n"
+            // "dc      civac, x0\n"
+            // "add     x0, x0, #0x40\n"
+            // "dc      civac, x0\n"
+            // "add     x0, x0, #0x40\n"
+            // "dc      civac, x0\n"
+            // "add     x0, x0, #0x40\n"
+            // "dc      civac, x0\n"
+            // "add     x0, x0, #0x40\n"
+            // "dc      civac, x0\n"
+            // "add     x0, x0, #0x40\n"
+            // "dc      civac, x0\n"
+            // "add     x0, x0, #0x40\n"
+            
+            // "b.pl    L_cpcdr_loop\n"
+            // "dsb sy\n"
+            // "isb sy\n"
+#endif
+            //surely bad on its own
+            "mrs    x28, S3_0_C15_C4_0\n"
+            // "orr    x28, x28, #0x800\n" //ARM64_REG_HID4_DisDcMVAOps this makes it go haywire lol //or not? //or most of the time?
+            "orr    x28, x28, #0x100000000000\n" //ARM64_REG_HID4_DisDcSWL2Ops
+            
+            // "orr    x28, x28, #0x100000000800\n" //or'd ARM64_REG_HID4_DisDcSWL2Ops | ARM64_REG_HID4_DisDcMVAOps
+            "msr    S3_0_C15_C4_0, x28\n"
+            "isb    sy\n"
+
+        /* Cyclone / typhoon specific init thing */
+            "mrs     x28, S3_0_C15_C0_0\n"
+            "orr     x28, x28, #0x100000\n"//ARM64_REG_HID0_LoopBuffDisb
+            "msr     S3_0_C15_C0_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C1_0\n"
+            "orr     x28, x28, #0x1000000\n"//ARM64_REG_HID1_rccDisStallInactiveIexCtl
+            "orr     x28, x28, #0x2000000\n"//ARM64_REG_HID1_disLspFlushWithContextSwitch
+            "msr     S3_0_C15_C1_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C3_0\n"
+            "orr     x28, x28, #0x40000000000000\n"//ARM64_REG_HID3_DisXmonSnpEvictTriggerL2StarvationMode
+            "msr     S3_0_C15_C3_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C5_0\n"
+            "and     x28, x28, #0xffffefffffffffff\n" //(~ARM64_REG_HID5_DisHwpLd)
+            "and     x28, x28, #0xffffdfffffffffff\n"//(~ARM64_REG_HID5_DisHwpSt)
+            "msr     S3_0_C15_C5_0, x28\n"
+
+            "mrs     x28, S3_0_C15_C8_0\n"
+            "orr     x28, x28, #0xff0\n" // ARM64_REG_HID8_DataSetID0_VALUE | ARM64_REG_HID8_DataSetID1_VALUE
+            "msr     S3_0_C15_C8_0, x28\n"
+        /* Cyclone / typhoon specific init thing end */
+
+
+        /* CPU1 Stuck in WFIWT Because of MMU Prefetch */
+            "mrs     x28, S3_0_C15_C2_0\n"
+            "orr     x28, x28, #0x2000\n" //ARM64_REG_HID2_disMMUmtlbPrefetch
+            "msr     S3_0_C15_C2_0, x28\n"
+            "dsb     sy\n"
+            "isb\n"
+        /* CPU1 Stuck in WFIWT Because of MMU Prefetch end */
+
+
+        /* Enable deep sleep (for cpus without __ARM_GLOBAL_SLEEP_BIT__) */
+        // NOTE: is deep sleep poweroff on wfi?
+//            "mov     x28, #0x1000000\n"
+  //          "msr     S3_5_C15_C4_0, x28\n"
+        /* Enable deep sleep (for cpus without __ARM_GLOBAL_SLEEP_BIT__) end*/
+
+        /* Set "OK to power down" */
+//            "mrs     x28, S3_5_C15_C5_0\n"
+  //          "orr     x28, x28, #0x3000000\n"
+    //        "msr     S3_5_C15_C5_0, x28\n"
+      //      "dsb     sy\n"
+        //    "isb\n"
+        /* Set "OK to power down" end */
+
+
+        /* ARM64_REG_HID1_disLspFlushWithContextSwitch */
+            "mrs     x28, S3_5_C15_C5_0\n"
+            "orr     x28, x28, #0x2000000\n"
+            "msr     S3_5_C15_C5_0, x0\n"
+        /* ARM64_REG_HID1_disLspFlushWithContextSwitch end */
+
+
+        /* ARM64_REG_HID2_disMMUmtlbPrefetch */
+            "mrs     x28, S3_0_C15_C2_0\n"
+            "orr     x28, x28, #0x2000\n"
+            "msr     S3_0_C15_C2_0, x28\n"
+            "dsb     sy\n"
+            "isb\n"
+        /* ARM64_REG_HID2_disMMUmtlbPrefetch end */
+
+	/* dont die in wfi kthx */
+            "mrs     x28, S3_5_c15_c5_0\n"
+            "orr     x28, x28, #(1<<13)\n"
+            "msr     S3_5_c15_c5_0, x28\n"
+    );
+
+    lock_release(&command_lock);
+}
+
 void command_init() {
     command_task = task_create("command", command_main);
     command_task->flags |= TASK_RESTART_ON_EXIT;
     command_task->flags &= ~TASK_CAN_EXIT;
     command_register("help", "shows this help message", help);
+    command_register("dump", "dumps various system registers", dump_system_regs);
+    command_register("fix", "tries to fix a7..", fix_a7);
 }

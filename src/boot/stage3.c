@@ -107,7 +107,7 @@ void* gboot_entry_point = (void*)0xddeeaaddbbeeeeff;
 void* gboot_args = (void*)0xddeeaaddbbeeeeff;
 
 void stage3_exit_to_el1_image(void* boot_args, void* boot_entry_point) {
-    if (*(uint8_t*)(gboot_args + 8 + 7)) {
+    if (*(uint8_t*)(gboot_args + 8 + 7) || true) {
         // kernel
         gboot_args = boot_args;
         gboot_entry_point = boot_entry_point;

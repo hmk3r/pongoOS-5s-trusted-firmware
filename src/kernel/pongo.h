@@ -487,10 +487,10 @@ extern uint64_t get_mmfr0(void);
 extern uint64_t get_migsts(void);
 extern uint64_t get_mpidr(void);
 extern void set_migsts(uint64_t val);
-extern void enable_mmu_el1(uint64_t ttbr0, uint64_t tcr, uint64_t mair, uint64_t ttbr1);
+extern void enable_mmu_el1(uint64_t ttbr0, uint64_t tcr, uint64_t mair, uint64_t ttbr1, uint64_t sctlr);
 extern void disable_mmu_el1();
 extern void lowlevel_cleanup(void);
-extern void lowlevel_setup(uint64_t phys_off, uint64_t phys_size);
+extern unsigned long long lowlevel_setup(uint64_t phys_off, uint64_t phys_size);
 extern void map_full_ram(uint64_t phys_off, uint64_t phys_size);
 extern uint64_t linear_kvm_alloc(uint32_t size);
 static inline _Bool is_16k(void)

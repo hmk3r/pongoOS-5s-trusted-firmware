@@ -282,7 +282,7 @@ void map_full_ram(uint64_t phys_off, uint64_t phys_size) {
 }
 uint64_t early_heap_base;
 uint64_t gPongoSlide;
-void lowlevel_setup(uint64_t phys_off, uint64_t phys_size)
+unsigned long long lowlevel_setup(uint64_t phys_off, uint64_t phys_size)
 {
     if (is_16k()) {
         tt_bits = 11;
@@ -331,10 +331,14 @@ void lowlevel_setup(uint64_t phys_off, uint64_t phys_size)
     if (!(get_el() == 1)) panic("pongoOS runs in EL1 only! did you skip pongoMon?");
 
     set_vbar_el1((uint64_t)&exception_vector);
-    enable_mmu_el1((uint64_t)ttbr0, 0x13A402A00 | (tg0 << 14) | (tg1 << 30) | (t1sz << 16) | t0sz, 0x04ff00, (uint64_t)ttbr1);
+    enable_mmu_el1((uint64_t)ttbr0, 0x13A402A00 | (tg0 << 14) | (tg1 << 30) | (t1sz << 16) | t0sz, 0x04ff00, (uint64_t)ttbr1, 0x200002034F4D91D);
+    unsigned long long buf = 0;
+    asm volatile ("mov %0, x3" : "=r"(buf) ::);
 
     kernel_vm_space.ttbr0 = (uint64_t)ttbr0;
     kernel_vm_space.ttbr1 = (uint64_t)ttbr1;
+
+    return buf;
 }
 void lowlevel_set_identity(void)
 {
