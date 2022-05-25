@@ -229,49 +229,10 @@ void fix_a7() {
         // "unlock the core for debugging"
         "msr OSLAR_EL1, xzr\n"
 
-            //good
-            "mrs x28, S3_0_C15_C4_0\n"
-            "and x28, x28, #0xfffffffffffff7ff\n" // ~ARM64_REG_HID4_DisDcMVAOps
-            "msr S3_0_C15_C4_0, x28\n"
-            "isb sy\n"
-#if 0
-            //cyclone is so baaaaaaad
-            "dsb sy\n"
-
-            "mov x0, xzr\n"
-            "mov x1, 0x10000\n"
-            "mov     x28, #0x3f\n"
-            "and     x1, x0, x28\n"
-            "bic     x0, x0, x28\n"
-            "add     x3, x3, x1\n"
-            "sub     x3, x3, #0x1\n"
-            "lsr     x3, x3, #6\n"
-            "dsb     sy\n"
-
-            // "L_cpcdr_loop:\n"
-            // "dc      civac, x0\n"
-            // "add     x0, x0, #0x40\n"
-            // "dc      civac, x0\n"
-            // "add     x0, x0, #0x40\n"
-            // "dc      civac, x0\n"
-            // "add     x0, x0, #0x40\n"
-            // "dc      civac, x0\n"
-            // "add     x0, x0, #0x40\n"
-            // "dc      civac, x0\n"
-            // "add     x0, x0, #0x40\n"
-            // "dc      civac, x0\n"
-            // "add     x0, x0, #0x40\n"
-            
-            // "b.pl    L_cpcdr_loop\n"
-            // "dsb sy\n"
-            // "isb sy\n"
-#endif
-            //surely bad on its own
+        /* Common to all Apple targets */
             "mrs    x28, S3_0_C15_C4_0\n"
-            // "orr    x28, x28, #0x800\n" //ARM64_REG_HID4_DisDcMVAOps this makes it go haywire lol //or not? //or most of the time?
+            "orr    x28, x28, #0x800\n" //ARM64_REG_HID4_DisDcMVAOps
             "orr    x28, x28, #0x100000000000\n" //ARM64_REG_HID4_DisDcSWL2Ops
-            
-            // "orr    x28, x28, #0x100000000800\n" //or'd ARM64_REG_HID4_DisDcSWL2Ops | ARM64_REG_HID4_DisDcMVAOps
             "msr    S3_0_C15_C4_0, x28\n"
             "isb    sy\n"
 
@@ -282,6 +243,7 @@ void fix_a7() {
 
             "mrs     x28, S3_0_C15_C1_0\n"
             "orr     x28, x28, #0x1000000\n"//ARM64_REG_HID1_rccDisStallInactiveIexCtl
+    //cyclone
             "orr     x28, x28, #0x2000000\n"//ARM64_REG_HID1_disLspFlushWithContextSwitch
             "msr     S3_0_C15_C1_0, x28\n"
 
@@ -299,50 +261,13 @@ void fix_a7() {
             "msr     S3_0_C15_C8_0, x28\n"
         /* Cyclone / typhoon specific init thing end */
 
-
-        /* CPU1 Stuck in WFIWT Because of MMU Prefetch */
-            "mrs     x28, S3_0_C15_C2_0\n"
-            "orr     x28, x28, #0x2000\n" //ARM64_REG_HID2_disMMUmtlbPrefetch
-            "msr     S3_0_C15_C2_0, x28\n"
-            "dsb     sy\n"
-            "isb\n"
-        /* CPU1 Stuck in WFIWT Because of MMU Prefetch end */
-
-
-        /* Enable deep sleep (for cpus without __ARM_GLOBAL_SLEEP_BIT__) */
-        // NOTE: is deep sleep poweroff on wfi?
-//            "mov     x28, #0x1000000\n"
-  //          "msr     S3_5_C15_C4_0, x28\n"
-        /* Enable deep sleep (for cpus without __ARM_GLOBAL_SLEEP_BIT__) end*/
-
-        /* Set "OK to power down" */
-//            "mrs     x28, S3_5_C15_C5_0\n"
-  //          "orr     x28, x28, #0x3000000\n"
-    //        "msr     S3_5_C15_C5_0, x28\n"
-      //      "dsb     sy\n"
-        //    "isb\n"
-        /* Set "OK to power down" end */
-
-
-        /* ARM64_REG_HID1_disLspFlushWithContextSwitch */
+            /* dont die in wfi kthx */
             "mrs     x28, S3_5_C15_C5_0\n"
             "orr     x28, x28, #0x2000000\n"
-            "msr     S3_5_C15_C5_0, x0\n"
-        /* ARM64_REG_HID1_disLspFlushWithContextSwitch end */
+            "msr     S3_5_C15_C5_0, x28\n"
 
-
-        /* ARM64_REG_HID2_disMMUmtlbPrefetch */
-            "mrs     x28, S3_0_C15_C2_0\n"
-            "orr     x28, x28, #0x2000\n"
-            "msr     S3_0_C15_C2_0, x28\n"
-            "dsb     sy\n"
-            "isb\n"
-        /* ARM64_REG_HID2_disMMUmtlbPrefetch end */
-
-	/* dont die in wfi kthx */
-            "mrs     x28, S3_5_c15_c5_0\n"
-            "orr     x28, x28, #(1<<13)\n"
-            "msr     S3_5_c15_c5_0, x28\n"
+            "isb sy\n"
+            "dsb sy\n"
     );
 
     lock_release(&command_lock);
