@@ -187,8 +187,9 @@ void linux_prep_boot()
     *colormatrix_mul_31 = 4095;
     *colormatrix_mul_32 = 4095;
     *colormatrix_mul_33 = 4095;
-    puts("This is only supported on iPhone 7 for now and works to a lesser extent on other A10 devices. Behavior on non-A10 devices is undefined!!");
 
+
+    // BIG HACK BIG HACK BIG HACK we'll clean it up.. eventually :P
     gEntryPoint = (void *)(0x803000000);
     uint64_t image_size = loader_xfer_recv_count;
     gLinuxStage = (void *)alloc_contig(image_size + LINUX_DTREE_SIZE);
