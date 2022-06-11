@@ -200,8 +200,11 @@ void dump_system_regs() {
     asm volatile ("mrs %0, ID_AA64MMFR0_EL1" : "=r"(buf) ::);
     iprintf("6. ID_AA64MMFR0_EL1: 0x%llx\n", buf);
 
+    asm volatile ("mrs %0, ID_AA64MMFR1_EL1" : "=r"(buf) ::);
+    iprintf("7. ID_AA64MMFR1_EL1: 0x%llx\n", buf);
+
     asm volatile ("mrs %0, ID_AA64MMFR2_EL1" : "=r"(buf) ::);
-    iprintf("7. ID_AA64MMFR2_EL1: 0x%llx\n", buf);
+    iprintf("8. ID_AA64MMFR2_EL1: 0x%llx\n", buf);
 
     //apple clang doesnt like it probably because armv8.0 has no business having sve lol
     // asm volatile ("mrs %0, ID_AA64ZFR0_EL1" : "=r"(buf) ::);
