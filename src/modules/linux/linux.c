@@ -45,15 +45,17 @@ void linux_dtree_init(void)
     fdt = malloc(LINUX_DTREE_SIZE);
 }
 
-void linux_dtree_overlay(char *boot_args)
+int linux_dtree_overlay(char *boot_args)
 {
-    int node = 0;
+    int node = 0, node1 = 0, ret = 0;
+    char fdt_nodename[64];
+    uint64_t fb_size;
 
     node = fdt_path_offset(fdt, "/chosen");
     if (node < 0)
     {
         iprintf("Failed to find /chosen");
-        return;
+        return -1;
     }
 
     if (ramdisk != NULL)
@@ -65,14 +67,14 @@ void linux_dtree_overlay(char *boot_args)
         if (ret < 0) 
         {
             iprintf("Cannot update chosen node [linux,initrd-start]\n");
-            return;
+            return -1;
         }
 
         ret = fdt_setprop_u64(fdt, node, "linux,initrd-end", (uint64_t) rd_end);
         if (ret < 0) 
         {
             iprintf("Cannot update chosen node [linux,initrd-end]\n");
-            return;
+            return -1;
         }
 
         iprintf("initrd @ %p-%p\n", rd_start, rd_end);
@@ -80,14 +82,54 @@ void linux_dtree_overlay(char *boot_args)
 
     if (boot_args)
     {
-        if (fdt_delprop(fdt, node, "bootargs") < 0)
+        ret = fdt_delprop(fdt, node, "bootargs");
+        if (ret < 0 && ret != -FDT_ERR_NOTFOUND)
         {
-            iprintf("Failed to delete bootargs");
-            return;
+            iprintf("Failed to delete bootargs: %d", ret);
+            return -1;
         }
 
         fdt_appendprop_string(fdt, node, "bootargs", boot_args);
     }
+
+    /* Simple framebuffer node */
+    fb_size = gBootArgs->Video.v_height * gBootArgs->Video.v_width * 4;
+
+    siprintf(fdt_nodename, "/framebuffer@%lx", gBootArgs->Video.v_baseAddr);
+    node1 = fdt_add_subnode(fdt, node, fdt_nodename);
+    if (node < 0)
+    {
+        iprintf("Failed to add framebuffer node");
+        return -1;
+    }
+
+    fdt_appendprop_addrrange(fdt, node, node1, "reg", gBootArgs->Video.v_baseAddr, fb_size);
+    fdt_appendprop_cell(fdt, node1, "width", gBootArgs->Video.v_width);
+    fdt_appendprop_cell(fdt, node1, "height", gBootArgs->Video.v_height);
+    fdt_appendprop_cell(fdt, node1, "stride", gBootArgs->Video.v_width * 4);
+    fdt_appendprop_string(fdt, node1, "format", "a8b8g8r8");
+    fdt_appendprop_string(fdt, node1, "compatible", "simple-framebuffer");
+
+    /* Reserved memory */
+    node = fdt_path_offset(fdt, "/reserved-memory");
+    if (node < 0)
+    {
+        iprintf("Failed to find /reserved-memory");
+        return -1;
+    }
+
+    /* Reserve the framebuffer (so that Linux doesn't overwrite it) */
+    siprintf(fdt_nodename, "/memory@%lx", gBootArgs->Video.v_baseAddr);
+    node1 = fdt_add_subnode(fdt, node, fdt_nodename);
+    if (node < 0)
+    {
+        iprintf("Failed to reserve framebuffer region");
+        return -1;
+    }
+    fdt_appendprop_addrrange(fdt, 0, node1, "reg", gBootArgs->Video.v_baseAddr, fb_size);
+    fdt_appendprop(fdt, node1, "no-map", "", 0);
+
+    return 0;
 }
 
 bool linux_can_boot()
@@ -170,7 +212,10 @@ void linux_prep_boot()
         }
 
         iprintf("Kernel command line: %s\n", gLinuxCmdLine);
-        linux_dtree_overlay(gLinuxCmdLine);
+        if (linux_dtree_overlay(gLinuxCmdLine) < 0)
+        {
+            panic("Booting Linux failed!");
+        }
     }
 
 #define pixfmt0 (&disp[0x402c / 4])
