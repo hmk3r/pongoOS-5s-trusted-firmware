@@ -47,8 +47,8 @@ void linux_dtree_init(void)
 
 int linux_dtree_overlay(char *boot_args)
 {
-    int node = 0, node1 = 0, ret = 0;
-    char fdt_nodename[64];
+    int node = 0, node1 = 0, ret = 0, width;
+    char fdt_nodename[64], *key;
     uint64_t fb_size;
 
     node = fdt_path_offset(fdt, "/chosen");
@@ -93,7 +93,18 @@ int linux_dtree_overlay(char *boot_args)
     }
 
     /* Simple framebuffer node */
-    fb_size = gBootArgs->Video.v_height * gBootArgs->Video.v_width * 4;
+    /* Some devices are really stupid */
+    key = dt_get_prop("device-tree", "target-type", NULL);
+    if (!strcmp(key, "N61") || // 6
+        !strcmp(key, "N71") || !strcmp(key, "N71m"))   // 6S
+        width = gBootArgs->Video.v_width + 2;
+    else if (!strcmp(key, "N56") || // 6 Plus
+             !strcmp(key, "N66") || !strcmp(key, "N66m")) // 6S Plus
+
+        width = gBootArgs->Video.v_width + 8;
+    else
+        width = gBootArgs->Video.v_width;
+    fb_size = gBootArgs->Video.v_height * width * 4;
 
     siprintf(fdt_nodename, "/framebuffer@%lx", gBootArgs->Video.v_baseAddr);
     node1 = fdt_add_subnode(fdt, node, fdt_nodename);
@@ -104,9 +115,9 @@ int linux_dtree_overlay(char *boot_args)
     }
 
     fdt_appendprop_addrrange(fdt, node, node1, "reg", gBootArgs->Video.v_baseAddr, fb_size);
-    fdt_appendprop_cell(fdt, node1, "width", gBootArgs->Video.v_width);
+    fdt_appendprop_cell(fdt, node1, "width", width);
     fdt_appendprop_cell(fdt, node1, "height", gBootArgs->Video.v_height);
-    fdt_appendprop_cell(fdt, node1, "stride", gBootArgs->Video.v_width * 4);
+    fdt_appendprop_cell(fdt, node1, "stride", width * 4);
     fdt_appendprop_string(fdt, node1, "format", "a8b8g8r8");
     fdt_appendprop_string(fdt, node1, "compatible", "simple-framebuffer");
 
