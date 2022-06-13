@@ -389,6 +389,38 @@ void fix_a7() {
     );
 }
 
+void fix_a10() {
+    __asm__ volatile(
+        // "unlock the core for debugging"
+        "msr OSLAR_EL1, xzr\n"
+
+        /* Common to all Apple targets */
+            "mrs    x28, S3_0_C15_C4_0\n"
+            "orr    x28, x28, #0x800\n" //ARM64_REG_HID4_DisDcMVAOps
+            "orr    x28, x28, #0x100000000000\n" //ARM64_REG_HID4_DisDcSWL2Ops
+            "msr    S3_0_C15_C4_0, x28\n"
+            "isb    sy\n"
+
+        /* Hurricane specific init thing */
+            // Increase Snoop reservation in EDB to reduce starvation risk
+            // Needs to be done before MMU is enabled
+            "mrs     x28, S3_0_C15_C5_0\n"
+            "bic     x28, x28, #0xc000\n"//ARM64_REG_HID5_CrdEdbSnpRsvd_mask
+            "orr     x28, x28, #0x8000\n"//ARM64_REG_HID5_CrdEdbSnpRsvd_VALUE
+            "msr     S3_0_C15_C5_0, x28\n"
+        /* Hurricane specific init thing end */
+
+            /* dont die in wfi kthx */
+            "mrs     x28, S3_5_C15_C5_0\n"
+            "bic     x28, x28, #0x3000000\n"
+            "orr     x28, x28, #0x2000000\n"
+            "msr     S3_5_C15_C5_0, x28\n"
+
+            "isb sy\n"
+            "dsb sy\n"
+    );
+}
+
 void command_init() {
     command_task = task_create("command", command_main);
     command_task->flags |= TASK_RESTART_ON_EXIT;
