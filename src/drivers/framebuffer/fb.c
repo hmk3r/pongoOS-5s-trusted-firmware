@@ -231,6 +231,9 @@ void screen_init() {
     gFramebuffer = (uint32_t*)(0xfb0000000ULL + fboff);
     gFramebufferCopy = (uint32_t*)alloc_contig(fbsize);
     iprintf("fbbase = %llx ", fbbase);
+    iprintf("fbwidth = %u ", width);
+    iprintf("fbheight = %u ", height);
+    iprintf("fbsize = %llx ", fbsize);
     height &= 0xfff0;
     scale_factor = 2;
     if (width > 800)
