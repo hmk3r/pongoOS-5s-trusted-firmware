@@ -129,7 +129,7 @@ extern volatile char gBootFlag;
 #define BOOT_FLAG_LINUX 3
 #define BOOT_FLAG_RAW 4
 
-#define LINUX_DTREE_SIZE 262144
+#define LINUX_DTREE_SIZE 1024*1024
 #define LINUX_CMDLINE_SIZE 4096
 
 typedef uint64_t lock;
