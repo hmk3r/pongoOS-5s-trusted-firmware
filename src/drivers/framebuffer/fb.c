@@ -230,10 +230,11 @@ void screen_init() {
     map_range(0xfb0000000ULL, fbbase - fboff, fbsize, 3, 1, true);
     gFramebuffer = (uint32_t*)(0xfb0000000ULL + fboff);
     gFramebufferCopy = (uint32_t*)alloc_contig(fbsize);
-    iprintf("fbbase = %llx ", fbbase);
+    iprintf("fbbase = 0x%llx ", fbbase);
     iprintf("fbwidth = %u ", width);
     iprintf("fbheight = %u ", height);
-    iprintf("fbsize = %llx ", fbsize);
+    iprintf("fbsize = 0x%llx ", fbsize);
+    iprintf("fbdepth = 0x%lx ", gBootArgs->Video.v_depth);
     height &= 0xfff0;
     scale_factor = 2;
     if (width > 800)
