@@ -103,6 +103,8 @@ int linux_dtree_overlay(char *boot_args)
              !strcmp(key, "N66") || !strcmp(key, "N66m") || // 6S Plus
              !strcmp(key, "D11") || !strcmp(key, "D111"))   // 7 Plus
         width = gBootArgs->Video.v_width + 8;
+    else if (!strcmp(key, "D22") || !strcmp(key, "D221")) // X
+        width = gBootArgs->Video.v_width + 10;
     else
         width = gBootArgs->Video.v_width;
     fb_size = gBootArgs->Video.v_height * width * 4;
