@@ -318,7 +318,41 @@ void dump_usb_regs() {
     lock_release(&command_lock);
 }
 
+bool is_ecore() {
+    uint64_t val;
+    __asm__ volatile("mrs\t%0, MPIDR_EL1" : "=r"(val));
+    return !(val & (1 << 16));
+}
+
+void fix_apple_common_ecore() {
+    __asm__ volatile(
+        // "unlock the core for debugging"
+        "msr OSLAR_EL1, xzr\n"
+
+        /* Common to all Apple targets */
+            "mrs    x28, S3_0_C15_C4_1\n"
+            "orr    x28, x28, #0x800\n" //ARM64_REG_HID4_DisDcMVAOps
+            "orr    x28, x28, #0x100000000000\n" //ARM64_REG_HID4_DisDcSWL2Ops
+            "msr    S3_0_C15_C4_1, x28\n"
+            "isb    sy\n"
+
+            /* dont die in wfi kthx */
+            "mrs     x28, S3_5_C15_C5_0\n"
+            "bic     x28, x28, #0x3000000\n"
+            "orr     x28, x28, #0x2000000\n"
+            "msr     S3_5_C15_C5_0, x28\n"
+
+            "isb sy\n"
+            "dsb sy\n"
+    );
+}
+
 void fix_apple_common() {
+    if(is_ecore()) {
+        fix_apple_common_ecore();
+        return;
+    }
+
     __asm__ volatile(
         // "unlock the core for debugging"
         "msr OSLAR_EL1, xzr\n"
