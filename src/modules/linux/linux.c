@@ -47,9 +47,10 @@ void linux_dtree_init(void)
 
 int linux_dtree_overlay(char *boot_args)
 {
-    int node = 0, node1 = 0, ret = 0, width;
+    int node = 0, node1 = 0, ret = 0;
     char fdt_nodename[64], *key;
     uint64_t fb_size;
+    uint32_t width;
 
     node = fdt_path_offset(fdt, "/chosen");
     if (node < 0)
@@ -103,10 +104,12 @@ int linux_dtree_overlay(char *boot_args)
              !strcmp(key, "N66") || !strcmp(key, "N66m") || // 6S Plus
              !strcmp(key, "D11") || !strcmp(key, "D111"))   // 7 Plus
         width = gBootArgs->Video.v_width + 8;
-    else if (!strcmp(key, "D22") || !strcmp(key, "D221")) // X
-        width = gBootArgs->Video.v_width + 10;
+    else if (!strcmp(key, "D22") || !strcmp(key, "D221")) { // X
+        width = gBootArgs->Video.v_width + 11;
+    }
     else
         width = gBootArgs->Video.v_width;
+
     fb_size = gBootArgs->Video.v_height * width * 4;
 
     siprintf(fdt_nodename, "/framebuffer@%lx", gBootArgs->Video.v_baseAddr);
@@ -121,7 +124,10 @@ int linux_dtree_overlay(char *boot_args)
     fdt_appendprop_cell(fdt, node1, "width", width);
     fdt_appendprop_cell(fdt, node1, "height", gBootArgs->Video.v_height);
     fdt_appendprop_cell(fdt, node1, "stride", width * 4);
-    fdt_appendprop_string(fdt, node1, "format", "a8b8g8r8");
+    if ((gBootArgs->Video.v_depth & 0xff) == 30) // X is *very* special
+        fdt_appendprop_string(fdt, node1, "format", "x2r10g10b10");
+    else
+        fdt_appendprop_string(fdt, node1, "format", "a8b8g8r8");
     fdt_appendprop_string(fdt, node1, "compatible", "simple-framebuffer");
 
     /* Reserved memory */
