@@ -98,7 +98,8 @@ int linux_dtree_overlay(char *boot_args)
     key = dt_get_prop("device-tree", "target-type", NULL);
     if (!strcmp(key, "N61") || // 6
         !strcmp(key, "N71") || !strcmp(key, "N71m") || // 6S
-        !strcmp(key, "D10") || !strcmp(key, "D101"))   // 7
+        !strcmp(key, "D10") || !strcmp(key, "D101") || // 7
+        !strcmp(key, "D20") || !strcmp(key, "D201"))   // 8
         width = gBootArgs->Video.v_width + 2;
     else if (!strcmp(key, "N56") || // 6 Plus
              !strcmp(key, "N66") || !strcmp(key, "N66m") || // 6S Plus
