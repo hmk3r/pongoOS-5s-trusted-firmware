@@ -37,6 +37,7 @@ uint32_t prev_ramdisk_size = 0;
 bool ramdisk_initialized = false;
 
 char gLinuxCmdLine[LINUX_CMDLINE_SIZE] = {0};
+void *gLinuxFDT = NULL;
 
 void linux_dtree_init(void)
 {
@@ -75,6 +76,13 @@ int linux_dtree_overlay(char *boot_args)
         if (ret < 0) 
         {
             iprintf("Cannot update chosen node [linux,initrd-end]\n");
+            return -1;
+        }
+
+        ret = fdt_add_mem_rsv(fdt, (uint64_t)rd_start, (uint64_t)(rd_end - rd_start));
+        if (ret < 0)
+        {
+            iprintf("Could not reserve initrd region in FDT");
             return -1;
         }
 
@@ -201,6 +209,12 @@ void fdt_select_dtree(void *fdt)
 
 void linux_prep_boot()
 {
+    uint64_t *reg = (uint64_t *)0x1feed5c00b7d00;
+    uint64_t image_size = loader_xfer_recv_count;
+    size_t dest_size = 0x10000000;
+    dt_node_t *memmap = NULL;
+    int ret = 0;
+
     if (!ramdisk_initialized)
     {
         ramdisk_initialized = true;
@@ -211,8 +225,8 @@ void linux_prep_boot()
             prev_ramdisk_size = 0;
         }
 
-        if (ramdisk_size != 0) {
-            // should not return NULL, since pongo panics on OOM.
+        if (ramdisk_size) {
+            // Should not return NULL, since pongo panics on OOM.
             ramdisk = alloc_contig(ramdisk_size);
             prev_ramdisk_size = ramdisk_size;
 
@@ -220,11 +234,9 @@ void linux_prep_boot()
         }
     }
 
-    // invoked in sched task with MMU on
+    // Invoked in sched task with MMU on
     if (!fdt_initialized)
-    {
         linux_dtree_init();
-    }
     else
     {
         fdt_select_dtree(fdt);
@@ -256,29 +268,49 @@ void linux_prep_boot()
     *colormatrix_mul_32 = 4095;
     *colormatrix_mul_33 = 4095;
 
+    /*
+     * This is a really hacky guesstimate, but it works on all devices..
+     * The main issue with the entrypoint is that we need a contiguous
+     * region where we can stuff like >30 megabytes worth of Linux. A good
+     * place to do so is before or after SEPFW. But it doesn't really matter
+     * as long as it works..
+     */
+    gEntryPoint = (void *)0x803000000;
 
-    // BIG HACK BIG HACK BIG HACK we'll clean it up.. eventually :P
-    gEntryPoint = (void *)(0x803000000);
-    uint64_t image_size = loader_xfer_recv_count;
+    memmap = dt_find(gDeviceTree, "memory-map");
+    reg = dt_prop(memmap, "SEPFW", NULL);
+    if (reg)
+    {
+        ret = fdt_add_mem_rsv(fdt, reg[0], reg[1]);
+        if (ret < 0) {
+            iprintf("Failed to reserve SEPFW region!");
+        }
+    }
+    else
+        iprintf("Failed to find SEPFW region in ADT!");
+
     gLinuxStage = (void *)alloc_contig(image_size + LINUX_DTREE_SIZE);
-    size_t dest_size = 0x10000000;
-    int res = unlzma_decompress((uint8_t *)gLinuxStage, &dest_size, loader_xfer_recv_data, image_size);
-    if (res != SZ_OK)
+    ret = unlzma_decompress((uint8_t *)gLinuxStage, &dest_size, loader_xfer_recv_data, image_size);
+    if (ret != SZ_OK)
     {
         puts("Assuming decompressed kernel.");
         image_size = *(uint64_t *)(loader_xfer_recv_data + 16);
         memcpy(gLinuxStage, loader_xfer_recv_data, image_size);
     }
     else
-    {
         image_size = *(uint64_t *)(gLinuxStage + 16);
-    }
-    void *gLinuxDtre = (void *)((((uint64_t)gLinuxStage) + image_size + 7ull) & -8ull);
-    memcpy(gLinuxDtre, fdt, LINUX_DTREE_SIZE);
+
+    gLinuxFDT = (void *)((((uint64_t)gLinuxStage) + image_size + 7ull) & -8ull);
+    ret = fdt_add_mem_rsv(fdt, (uint64_t)gLinuxFDT, LINUX_DTREE_SIZE);
+    if (ret < 0)
+        iprintf("Could not reserve FDT region in FDT, here be dragons..");
+
+    memcpy(gLinuxFDT, fdt, LINUX_DTREE_SIZE);
     gLinuxStageSize = image_size + LINUX_DTREE_SIZE;
 
     gBootArgs = (void *)((((uint64_t)gEntryPoint) + image_size + 7ull) & -8ull);
     iprintf("Booting Linux: %p(%p)\n", gEntryPoint, gBootArgs);
+
     gLinuxStage = (void *)(((uint64_t)gLinuxStage) - kCacheableView + 0x800000000);
 }
 
