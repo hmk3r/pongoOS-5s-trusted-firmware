@@ -294,6 +294,13 @@ void apply_tunables()
 {
     has_ecores = false;
 
+    /* Enable the FPU */
+    __asm__ volatile(
+        "mrs x28, CPACR_EL1\n"
+        "orr x28, x28, #0x300000\n"
+        "msr CPACR_EL1, x28\n"
+    );
+
     switch(socnum) {
         case 0x8960:
         case 0x7000:
