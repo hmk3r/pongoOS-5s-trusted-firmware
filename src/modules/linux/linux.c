@@ -53,10 +53,24 @@ int linux_dtree_overlay(char *boot_args)
     uint64_t fb_size;
     uint32_t width;
 
+    /* Fill the RAM base & size */
+    node = fdt_path_offset(fdt, "/");
+    node1 = fdt_path_offset(fdt, "/memory@800000000");
+    if (node < 0 || node1 < 0)
+    {
+        panic("Failed to find /memory@800000000 FDT node!");
+    }
+
+    ret = fdt_appendprop_addrrange(fdt, node, node1, "reg", gBootArgs->physBase, gBootArgs->memSize);
+    if (ret < 0)
+    {
+        panic("Failed to fill /memory FDT node!");
+    }
+
     node = fdt_path_offset(fdt, "/chosen");
     if (node < 0)
     {
-        iprintf("Failed to find /chosen");
+        iprintf("Failed to find /chosen FDT node!");
         return -1;
     }
 
