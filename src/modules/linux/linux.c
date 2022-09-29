@@ -166,13 +166,28 @@ int linux_dtree_overlay(char *boot_args)
     /* Reserve the framebuffer (so that Linux doesn't overwrite it) */
     siprintf(fdt_nodename, "/memory@%lx", gBootArgs->Video.v_baseAddr);
     node1 = fdt_add_subnode(fdt, node, fdt_nodename);
-    if (node < 0)
+    if (node1 < 0)
     {
         iprintf("Failed to reserve framebuffer region");
         return -1;
     }
     fdt_appendprop_addrrange(fdt, 0, node1, "reg", gBootArgs->Video.v_baseAddr, fb_size);
     fdt_appendprop(fdt, node1, "no-map", "", 0);
+
+    if (gBootArgs->physBase > 0x800000000)
+    {
+        /* Reserve TZ/low FW regions and such */
+        node1 = fdt_add_subnode(fdt, node, "memory@800000000");
+        if (node1 < 0)
+        {
+            iprintf("Failed to reserve TZ/FW region");
+            return -1;
+        }
+        fdt_appendprop_addrrange(fdt, 0, node1, "reg", 0x800000000, (gBootArgs->physBase - 0x800000000));
+        fdt_appendprop(fdt, node1, "no-map", "", 0);
+    }
+    else if (gBootArgs->physBase < 0x800000000)
+        panic("sar how did you get under dram base");
 
     return 0;
 }
