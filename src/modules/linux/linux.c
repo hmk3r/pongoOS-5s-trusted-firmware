@@ -118,7 +118,11 @@ int linux_dtree_overlay(char *boot_args)
     /* Simple framebuffer node */
     /* Some devices are really stupid */
     key = dt_get_prop("device-tree", "target-type", NULL);
-    if (!strcmp(key, "N61") || // 6
+    if (!strcmp(key, "N51") || !strcmp(key, "N53")) { //5s
+        iprintf("Size - X: %lu, Y: %lu", gBootArgs->Video.v_width, gBootArgs->Video.v_height);
+        width = gBootArgs->Video.v_width;
+    }
+    else if (!strcmp(key, "N61") || // 6
         !strcmp(key, "N71") || !strcmp(key, "N71m") || // 6S
         !strcmp(key, "D10") || !strcmp(key, "D101") || // 7
         !strcmp(key, "D20") || !strcmp(key, "D201")) // 8
@@ -177,7 +181,7 @@ int linux_dtree_overlay(char *boot_args)
     if (gBootArgs->physBase > 0x800000000)
     {
         /* Reserve TZ/low FW regions and such */
-        node1 = fdt_add_subnode(fdt, node, "memory@800000000");
+        node1 = fdt_add_subnode(fdt, node, "/memory@800000000");
         if (node1 < 0)
         {
             iprintf("Failed to reserve TZ/FW region");
