@@ -29,5 +29,5 @@ void el_info() {
 
 void el3_commands_register() {
     command_register("el3_smc_call", "Do an SMC call", el3_smc_call);
-    command_register("el_info", "Checks the current EL and attempts to retrieve ELR_EL3", el_info);
+    // command_register("el_info", "Checks the current EL and attempts to retrieve ELR_EL3", el_info);
 }

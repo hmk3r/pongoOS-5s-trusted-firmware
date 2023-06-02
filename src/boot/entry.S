@@ -169,18 +169,6 @@ _exception_vector_el3:
 .balign 128
     eret
 .balign 128
-    mrs x0, elr_el3
-    mrs x1, CurrentEL
-    // sanity check value
-    ldr x2, =0x9192939495969798
-
-    ldr x10, =0x803000000
-    ldr x11, =0x803000008
-    ldr x12, =0x803000010
-    
-    str x0, [x10]
-    str x1, [x11]
-    str x2, [x12]
     eret
 
 .balign 128
