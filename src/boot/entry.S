@@ -434,49 +434,6 @@ sync_handler64:
 	mov	sp, x12
 
 	/*
-	 * Per SMCCC documentation, bits [23:17] must be zero for Fast
-	 * SMCs. Other values are reserved for future use. Ensure that
-	 * these bits are zeroes, if not report as unknown SMC.
-	 */
-	// tbz	x0, #FUNCID_TYPE_SHIFT, 2f  /* Skip check if its a Yield Call*/
-	// tst	x0, #(FUNCID_FC_RESERVED_MASK << FUNCID_FC_RESERVED_SHIFT)
-	// b.ne	smc_unknown
-
-	/*
-	 * Per SMCCCv1.3 a caller can set the SVE hint bit in the SMC FID
-	 * passed through x0. Copy the SVE hint bit to flags and mask the
-	 * bit in smc_fid passed to the standard service dispatcher.
-	 * A service/dispatcher can retrieve the SVE hint bit state from
-	 * flags using the appropriate helper.
-	 */
-2:
-	// bfi	x7, x0, #FUNCID_SVE_HINT_SHIFT, #FUNCID_SVE_HINT_MASK
-	// bic	x0, x0, #(FUNCID_SVE_HINT_MASK << FUNCID_SVE_HINT_SHIFT)
-
-	/* Get the unique owning entity number */
-	// ubfx	x16, x0, #FUNCID_OEN_SHIFT, #FUNCID_OEN_WIDTH
-	// ubfx	x15, x0, #FUNCID_TYPE_SHIFT, #FUNCID_TYPE_WIDTH
-	// orr	x16, x16, x15, lsl #FUNCID_OEN_WIDTH
-
-	/* Load descriptor index from array of indices */
-	// adrp	x14, rt_svc_descs_indices
-	// add	x14, x14, :lo12:rt_svc_descs_indices
-	// ldrb	w15, [x14, x16]
-
-	/* Any index greater than 127 is invalid. Check bit 7. */
-	// tbnz	w15, 7, smc_unknown
-
-	/*
-	 * Get the descriptor using the index
-	 * x11 = (base + off), w15 = index
-	 *
-	 * handler = (base + off) + (index << log2(size))
-	 */
-	// adr	x11, (__RT_SVC_DESCS_START__ + RT_SVC_DESC_HANDLE)
-	// lsl	w10, w15, #RT_SVC_SIZE_LOG2
-	// ldr	x15, [x11, w10, uxtw]
-
-	/*
 	 * Call the Secure Monitor Call handler and then drop directly into
 	 * el3_exit() which will program any remaining architectural state
 	 * prior to issuing the ERET to the desired lower EL.
@@ -488,23 +445,6 @@ sync_handler64:
 	b	_el3_exit
 
 sysreg_handler64:
-	// mov	x0, x16		/* ESR_EL3, containing syndrome information */
-	// mov	x1, x6		/* lower EL's context */
-	// mov	x19, x6		/* save context pointer for after the call */
-	// mov	sp, x12		/* EL3 runtime stack, as loaded above */
-
-	// /* int handle_sysreg_trap(uint64_t esr_el3, cpu_context_t *ctx); */
-	// bl	handle_sysreg_trap
-	// /*
-	//  * returns:
-	//  *   -1: unhandled trap, panic
-	//  *    0: handled trap, return to the trapping instruction (repeating it)
-	//  *    1: handled trap, return to the next instruction
-	//  */
-
-	// tst	w0, w0
-	// b.mi	smc_prohibited // elx_panic	/* negative return value: panic */
-	// b.eq	1f		/* zero: do not change ELR_EL3 */
 
 	/* advance the PC to continue after the instruction */
 	ldr	x1, [x19, #CTX_EL3STATE_OFFSET + CTX_ELR_EL3]
