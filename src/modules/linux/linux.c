@@ -193,6 +193,15 @@ int linux_dtree_overlay(char *boot_args)
     else if (gBootArgs->physBase < 0x800000000)
         panic("sar how did you get under dram base");
 
+    /* Reserve EL3 Application memory (since we don't have memory isolation right now, we simply do not map the app memory) */
+    node1 = fdt_add_subnode(fdt, node, "/memory@800000000");
+    if (node1 < 0)
+    {
+        iprintf("Failed to reserve EL3 Application memory");
+        return -1;
+    }
+    fdt_appendprop_addrrange(fdt, 0, node1, "reg", gBootArgs->physBase, 0x2000); // 8MB
+    fdt_appendprop(fdt, node1, "no-map", "", 0);
     return 0;
 }
 
