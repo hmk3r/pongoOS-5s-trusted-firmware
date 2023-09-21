@@ -7,7 +7,7 @@ A pre-boot execution environment for Apple boards built on top of checkra1n.
 This fork of pongoOS contains a minimal trusted firmware implemented in `./src/boot/entry.S`. It provides a Fibonacci number compute service,
 which can be called using the ARM SMC Calling Convention.
 
-For further information on how to get it running and how to use it, see [the iPhone 5S linux guide]()
+For further information on how to get it running and how to use it, see [the iPhone 5S linux guide](https://github.com/hmk3r/iphone-5s-linux-howto)
 
 ## Building on macOS
 
